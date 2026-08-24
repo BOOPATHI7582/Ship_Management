@@ -2,12 +2,11 @@
   command = "npm run build"
   publish = "dist"
 
-# Proxy API calls to the local backend through the cloudflared quick tunnel.
-# NOTE: quick-tunnel URLs change on every tunnel restart - update this line
-# and redeploy whenever you restart the tunnel (run scripts\start-tunnel.cmd).
+# Proxy API calls to the deployed Spring Boot backend.
+# Replace the target with your real backend URL after deploying it.
 [[redirects]]
   from = "/api/*"
-  to = "https://subscriber-layers-cardiovascular-kitchen.trycloudflare.com/api/:splat"
+  to = "https://REPLACE-WITH-YOUR-BACKEND-URL/api/:splat"
   status = 200
   force = true
 
