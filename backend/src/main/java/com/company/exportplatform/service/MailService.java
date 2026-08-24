@@ -27,6 +27,11 @@ public class MailService {
         this.mailSenderProvider = mailSenderProvider;
     }
 
+    /** @return true when real SMTP delivery is configured. */
+    public boolean isMailEnabled() {
+        return mailEnabled;
+    }
+
     /**
      * @return true if the email was really sent, false if it was only logged.
      */

@@ -116,7 +116,9 @@ public class AuthService {
         mailService.sendHtml(user.getEmail(), VERIFY_EMAIL_SUBJECT,
                 buildVerificationEmail(user, link, rawToken));
         log.info("Issued email verification token for user #{}", user.getId());
-        return link;
+        // Raw link is only exposed in the API response when SMTP is not
+        // configured (local dev convenience). Never leak it in production.
+        return mailService.isMailEnabled() ? null : link;
     }
 
     @Transactional
