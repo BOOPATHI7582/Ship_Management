@@ -1,12 +1,11 @@
 services:
   - type: web
     name: exportplatform-api
-    runtime: java
+    runtime: docker
     plan: free
     region: singapore          # closest to India
     rootDir: backend
-    buildCommand: mvn clean package -DskipTests
-    startCommand: java -jar target/exportplatform-0.0.1-SNAPSHOT.jar --spring.profiles.active=prod
+    dockerfilePath: Dockerfile
     healthCheckPath: /api/public/stats
     envVars:
       - key: SPRING_PROFILES_ACTIVE
