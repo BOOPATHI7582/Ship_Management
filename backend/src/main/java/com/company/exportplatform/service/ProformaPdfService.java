@@ -1,0 +1,295 @@
+package com.company.exportplatform.service;
+
+import com.company.exportplatform.dto.response.ProformaItemResponse;
+import com.company.exportplatform.dto.response.ProformaResponse;
+import com.lowagie.text.Document;
+import com.lowagie.text.Element;
+import com.lowagie.text.Font;
+import com.lowagie.text.PageSize;
+import com.lowagie.text.Paragraph;
+import com.lowagie.text.Phrase;
+import com.lowagie.text.Rectangle;
+import com.lowagie.text.pdf.PdfPCell;
+import com.lowagie.text.pdf.PdfPTable;
+import com.lowagie.text.pdf.PdfWriter;
+import org.springframework.stereotype.Service;
+
+import java.awt.Color;
+import java.io.ByteArrayOutputStream;
+import java.math.BigDecimal;
+import java.time.format.DateTimeFormatter;
+import java.util.Locale;
+
+/**
+ * Renders a proforma invoice to PDF with OpenPDF, mirroring the quotation
+ * layout plus bank remittance details.
+ */
+@Service
+public class ProformaPdfService {
+
+    private static final Color NAVY = new Color(15, 23, 42);
+    private static final Color GOLD = new Color(176, 141, 20);
+    private static final Color LIGHT_ROW = new Color(244, 246, 250);
+    private static final DateTimeFormatter DATE = DateTimeFormatter.ofPattern("dd MMM yyyy", Locale.ENGLISH);
+
+    public byte[] render(ProformaResponse pi) {
+        try (ByteArrayOutputStream out = new ByteArrayOutputStream()) {
+            Document document = new Document(PageSize.A4, 36, 36, 36, 40);
+            PdfWriter.getInstance(document, out);
+            document.open();
+
+            addHeader(document, pi);
+            document.add(partiesBlock(pi));
+            document.add(itemsTable(pi));
+            document.add(totalsTable(pi));
+
+            section(document, "Payment Terms", pi.paymentTerms());
+            section(document, "Bank Details", pi.bankDetails());
+            section(document, "Notes", pi.notes());
+
+            Paragraph footer = new Paragraph(
+                    "This proforma invoice is for advance payment purposes and is not a tax invoice.",
+                    small(Font.NORMAL, Color.GRAY));
+            footer.setAlignment(Element.ALIGN_CENTER);
+            footer.setSpacingBefore(14);
+            document.add(footer);
+
+            document.close();
+            return out.toByteArray();
+        } catch (Exception ex) {
+            throw new IllegalStateException("Could not render proforma invoice PDF: " + ex.getMessage(), ex);
+        }
+    }
+
+    private void addHeader(Document document, ProformaResponse pi) throws Exception {
+        PdfPTable header = new PdfPTable(new float[]{1f, 1f});
+        header.setWidthPercentage(100);
+
+        PdfPCell brand = cell();
+        brand.addElement(new Paragraph("GLOBAL EXPORT", heading(16, NAVY)));
+        brand.addElement(new Paragraph("Cargo • Vessels • Worldwide Shipping", small(Font.NORMAL, Color.DARK_GRAY)));
+        brand.addElement(new Paragraph("D-14 Industrial Estate, Mumbai 400001, India", tiny(Font.NORMAL, Color.GRAY)));
+        brand.addElement(new Paragraph("+91 22 4000 1234  •  accounts@globalexport.example", tiny(Font.NORMAL, Color.GRAY)));
+        header.addCell(brand);
+
+        PdfPCell meta = cell();
+        meta.setHorizontalAlignment(Element.ALIGN_RIGHT);
+        Paragraph title = new Paragraph("PROFORMA INVOICE", heading(16, GOLD));
+        title.setAlignment(Element.ALIGN_RIGHT);
+        meta.addElement(title);
+        meta.addElement(new Paragraph(pi.piNo(), bold(11, NAVY)));
+        if (pi.issueDate() != null) {
+            rightLine(meta, "Issue date: " + DATE.format(pi.issueDate()));
+        }
+        if (pi.validUntil() != null) {
+            rightLine(meta, "Valid until: " + DATE.format(pi.validUntil()));
+        }
+        if (pi.quoteNo() != null) {
+            rightLine(meta, "Against quotation: " + pi.quoteNo());
+        }
+        header.addCell(meta);
+
+        document.add(header);
+        document.add(spacer(10));
+    }
+
+    private Element partiesBlock(ProformaResponse pi) {
+        PdfPTable parties = new PdfPTable(new float[]{1.2f, 0.8f});
+        parties.setWidthPercentage(100);
+
+        PdfPCell billTo = cell();
+        billTo.addElement(new Paragraph("BILL TO", bold(9, Color.GRAY)));
+        String name = pi.clientCompanyName() != null ? pi.clientCompanyName() : "Client";
+        billTo.addElement(new Paragraph(name, bold(11, NAVY)));
+        if (notBlank(pi.enquiryRef())) {
+            billTo.addElement(new Paragraph("Enquiry " + pi.enquiryRef(), small(Font.NORMAL, Color.DARK_GRAY)));
+        }
+        parties.addCell(billTo);
+
+        PdfPCell reference = cell();
+        reference.setHorizontalAlignment(Element.ALIGN_RIGHT);
+        reference.addElement(new Paragraph("REFERENCE", bold(9, Color.GRAY)));
+        reference.addElement(new Paragraph("Currency: " + pi.currency(), small(Font.NORMAL, Color.DARK_GRAY)));
+        parties.addCell(reference);
+
+        return parties;
+    }
+
+    private Element itemsTable(ProformaResponse pi) {
+        PdfPTable table = new PdfPTable(new float[]{0.5f, 4.9f, 1f, 1f, 1.3f, 1.3f});
+        table.setWidthPercentage(100);
+        table.setSpacingBefore(12);
+
+        table.addCell(headerCell("#"));
+        table.addCell(headerCell("Description"));
+        table.addCell(headerCell("Qty"));
+        table.addCell(headerCell("Unit"));
+        table.addCell(headerCell("Rate"));
+        table.addCell(headerCell("Amount"));
+
+        int i = 1;
+        boolean stripe = false;
+        for (ProformaItemResponse item : pi.items()) {
+            Color bg = stripe ? LIGHT_ROW : Color.WHITE;
+            stripe = !stripe;
+            table.addCell(bodyCell(String.valueOf(i++), bg, Element.ALIGN_CENTER));
+            table.addCell(bodyCell(nullSafe(item.description()), bg, Element.ALIGN_LEFT));
+            table.addCell(bodyCell(strip(item.quantity()), bg, Element.ALIGN_CENTER));
+            table.addCell(bodyCell(nullSafe(item.unit()), bg, Element.ALIGN_CENTER));
+            table.addCell(bodyCell(money(item.ratePerUnit(), pi.currency()), bg, Element.ALIGN_RIGHT));
+            table.addCell(bodyCell(money(item.lineAmount(), pi.currency()), bg, Element.ALIGN_RIGHT));
+        }
+        return table;
+    }
+
+    private Element totalsTable(ProformaResponse pi) {
+        PdfPTable totals = new PdfPTable(new float[]{1f});
+        totals.setWidthPercentage(58);
+        totals.setHorizontalAlignment(Element.ALIGN_RIGHT);
+        totals.setSpacingBefore(10);
+
+        row(totals, "Subtotal", money(pi.subtotal(), pi.currency()), false);
+        if (gtZero(pi.discount())) row(totals, "Discount", "-" + money(pi.discount(), pi.currency()), false);
+        if (gtZero(pi.freightCharges())) row(totals, "Freight", money(pi.freightCharges(), pi.currency()), false);
+        if (gtZero(pi.loadingCharges())) row(totals, "Loading charges", money(pi.loadingCharges(), pi.currency()), false);
+        if (gtZero(pi.documentationCharges())) row(totals, "Documentation", money(pi.documentationCharges(), pi.currency()), false);
+        if (gtZero(pi.insuranceCharges())) row(totals, "Insurance", money(pi.insuranceCharges(), pi.currency()), false);
+        if (gtZero(pi.otherCharges())) row(totals, "Other charges", money(pi.otherCharges(), pi.currency()), false);
+        row(totals, "Taxable amount", money(pi.taxableAmount(), pi.currency()), false);
+
+        boolean cgstSplit = gtZero(pi.cgstAmount()) || gtZero(pi.sgstAmount());
+        if (cgstSplit) {
+            if (pi.taxRateName() != null) rowSmall(totals, "(" + pi.taxRateName() + ")");
+            row(totals, "CGST" + suffixPercent(pi), money(pi.cgstAmount(), pi.currency()), false);
+            row(totals, "SGST" + suffixPercent(pi), money(pi.sgstAmount(), pi.currency()), false);
+        } else if (gtZero(pi.igstAmount())) {
+            if (pi.taxRateName() != null) rowSmall(totals, "(" + pi.taxRateName() + ")");
+            row(totals, "IGST" + suffixPercent(pi), money(pi.igstAmount(), pi.currency()), false);
+        } else if (gtZero(pi.taxAmount())) {
+            if (pi.taxRateName() != null) rowSmall(totals, "(" + pi.taxRateName() + ")");
+            row(totals, "Tax" + suffixPercent(pi), money(pi.taxAmount(), pi.currency()), false);
+        } else {
+            row(totals, "Tax (" + (pi.taxTreatment() != null ? pi.taxTreatment().replace('_', ' ') : "EXEMPT") + ")",
+                    money(BigDecimal.ZERO, pi.currency()), false);
+        }
+        row(totals, "GRAND TOTAL", money(pi.grandTotal(), pi.currency()), true);
+        return totals;
+    }
+
+    // ---------- low-level helpers ----------
+
+    private void section(Document document, String title, String body) throws Exception {
+        if (!notBlank(body)) {
+            return;
+        }
+        document.add(spacer(8));
+        document.add(new Paragraph(title.toUpperCase(), bold(9, Color.GRAY)));
+        document.add(new Paragraph(body, small(Font.NORMAL, Color.DARK_GRAY)));
+    }
+
+    private void row(PdfPTable table, String label, String value, boolean emphasis) {
+        Font font = emphasis ? bold(10, NAVY) : small(Font.NORMAL, Color.DARK_GRAY);
+        int borders = emphasis ? Rectangle.TOP | Rectangle.BOTTOM : Rectangle.NO_BORDER;
+        PdfPCell labelCell = new PdfPCell(new Phrase(label, font));
+        labelCell.setBorder(borders);
+        labelCell.setBorderWidthTop(emphasis ? 1f : 0f);
+        labelCell.setBackgroundColor(emphasis ? LIGHT_ROW : Color.WHITE);
+        labelCell.setPaddingTop(4);
+        labelCell.setPaddingBottom(4);
+        table.addCell(labelCell);
+        PdfPCell valueCell = new PdfPCell(new Phrase(value, font));
+        valueCell.setBorder(borders);
+        valueCell.setBorderWidthTop(emphasis ? 1f : 0f);
+        valueCell.setBackgroundColor(emphasis ? LIGHT_ROW : Color.WHITE);
+        valueCell.setHorizontalAlignment(Element.ALIGN_RIGHT);
+        valueCell.setPaddingTop(4);
+        valueCell.setPaddingBottom(4);
+        table.addCell(valueCell);
+    }
+
+    private void rowSmall(PdfPTable table, String text) {
+        PdfPCell cell = new PdfPCell(new Phrase(text, tiny(Font.ITALIC, Color.GRAY)));
+        cell.setBorder(Rectangle.NO_BORDER);
+        table.addCell(cell);
+    }
+
+    private PdfPCell headerCell(String text) {
+        PdfPCell cell = new PdfPCell(new Phrase(text, bold(9, Color.WHITE)));
+        cell.setBackgroundColor(NAVY);
+        cell.setHorizontalAlignment(Element.ALIGN_CENTER);
+        cell.setVerticalAlignment(Element.ALIGN_MIDDLE);
+        cell.setPaddingTop(5);
+        cell.setPaddingBottom(5);
+        return cell;
+    }
+
+    private PdfPCell bodyCell(String text, Color bg, int alignment) {
+        PdfPCell cell = new PdfPCell(new Phrase(text == null ? "" : text, small(Font.NORMAL, Color.DARK_GRAY)));
+        cell.setBackgroundColor(bg);
+        cell.setHorizontalAlignment(alignment);
+        cell.setPaddingTop(4);
+        cell.setPaddingBottom(4);
+        return cell;
+    }
+
+    private PdfPCell cell() {
+        PdfPCell cell = new PdfPCell();
+        cell.setBorder(Rectangle.NO_BORDER);
+        return cell;
+    }
+
+    private void rightLine(PdfPCell cell, String text) {
+        Paragraph p = new Paragraph(text, small(Font.NORMAL, Color.DARK_GRAY));
+        p.setAlignment(Element.ALIGN_RIGHT);
+        cell.addElement(p);
+    }
+
+    private static Paragraph spacer(float points) {
+        Paragraph p = new Paragraph(" ");
+        p.setLeading(points);
+        return p;
+    }
+
+    private Font heading(int size, Color color) {
+        return new Font(Font.HELVETICA, size, Font.BOLD, color);
+    }
+
+    private Font bold(int size, Color color) {
+        return new Font(Font.HELVETICA, size, Font.BOLD, color);
+    }
+
+    private Font small(int style, Color color) {
+        return new Font(Font.HELVETICA, 9, style, color);
+    }
+
+    private Font tiny(int style, Color color) {
+        return new Font(Font.HELVETICA, 7.5f, style, color);
+    }
+
+    private String money(BigDecimal amount, String currency) {
+        if (amount == null) {
+            amount = BigDecimal.ZERO;
+        }
+        return currency + " " + String.format(Locale.ENGLISH, "%,.2f", amount);
+    }
+
+    private String suffixPercent(ProformaResponse pi) {
+        return pi.taxRatePercent() != null ? " @ " + strip(pi.taxRatePercent()) + "%" : "";
+    }
+
+    private String strip(BigDecimal value) {
+        return value == null ? "" : value.stripTrailingZeros().toPlainString();
+    }
+
+    private boolean gtZero(BigDecimal value) {
+        return value != null && value.signum() > 0;
+    }
+
+    private boolean notBlank(String value) {
+        return value != null && !value.isBlank();
+    }
+
+    private String nullSafe(String value) {
+        return value == null ? "" : value;
+    }
+}
