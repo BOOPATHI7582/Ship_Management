@@ -1,4 +1,5 @@
 services:
+  # Spring Boot API (public web service)
   - type: web
     name: exportplatform-api
     runtime: docker
@@ -10,18 +11,33 @@ services:
     envVars:
       - key: SPRING_PROFILES_ACTIVE
         value: prod
-      - key: SPRING_DATASOURCE_URL
-        sync: false            # set in dashboard: jdbc:mysql://<host>:<port>/<db>?sslMode=REQUIRED
+      # DB wiring from the private MySQL service below
+      - key: DB_HOST
+        fromService:
+          name: exportplatform-mysql
+          type: pserv
+          property: host
+      - key: DB_PORT
+        fromService:
+          name: exportplatform-mysql
+          type: pserv
+          property: port
       - key: SPRING_DATASOURCE_USERNAME
-        sync: false
+        fromService:
+          name: exportplatform-mysql
+          type: pserv
+          envVarKey: MYSQL_USER
       - key: SPRING_DATASOURCE_PASSWORD
-        sync: false
+        fromService:
+          name: exportplatform-mysql
+          type: pserv
+          envVarKey: MYSQL_PASSWORD
       - key: JWT_SECRET
         generateValue: true
       - key: APP_BASE_URL
-        sync: false            # your Netlify site URL, e.g. https://cool-pegasus-a4f560.netlify.app
+        sync: false            # e.g. https://ship-management-l8kk.vercel.app (frontend, for email links)
       - key: CORS_ALLOWED_ORIGINS
-        sync: false            # same Netlify URL (comma-separated for multiple)
+        sync: false            # e.g. https://*.vercel.app (app default already covers this + localhost:5173)
       - key: MAIL_HOST
         sync: false            # smtp.gmail.com when email is configured
       - key: MAIL_PORT
@@ -34,3 +50,26 @@ services:
         sync: false
       - key: RAZORPAY_KEY_SECRET
         sync: false
+
+  # MySQL 8 (private service, reachable only from inside Render)
+  # NOTE: Render has no free tier for private services.
+  # 0.5c-512mb (~$7/mo) + 10 GB disk (~$2.5/mo).
+  - type: pserv
+    name: exportplatform-mysql
+    runtime: docker
+    plan: 0.5c-512mb
+    region: singapore
+    repo: https://github.com/render-examples/mysql.git
+    envVars:
+      - key: MYSQL_DATABASE
+        value: shimanagement
+      - key: MYSQL_USER
+        value: exportapp
+      - key: MYSQL_PASSWORD
+        generateValue: true
+      - key: MYSQL_ROOT_PASSWORD
+        generateValue: true
+    disk:
+      name: mysql-data
+      mountPath: /var/lib/mysql
+      sizeGB: 10
