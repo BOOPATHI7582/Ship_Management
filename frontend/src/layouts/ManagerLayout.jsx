@@ -2,7 +2,7 @@ import { Link } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext'
 import DashboardShell from '../components/DashboardShell'
 
-const navItems = [
+const baseNavItems = [
   { to: '/manager/contacts', label: 'Inbox' },
   { to: '/manager/enquiries', label: 'Enquiry Queue' },
   { to: '/manager/proforma', label: 'Proforma Invoices' },
@@ -11,12 +11,16 @@ const navItems = [
   { to: '/manager/shipments', label: 'Shipments' },
   { to: '/manager/documents', label: 'Documents' },
   { to: '/manager/reviews', label: 'Reviews' },
+]
+
+const adminNavItems = [
   { to: '/manager/reports', label: 'Reports' },
   { to: '/manager/audit', label: 'Audit Log' },
 ]
 
 export default function ManagerLayout() {
   const { isAdmin } = useAuth()
+  const navItems = isAdmin ? [...baseNavItems, ...adminNavItems] : baseNavItems
 
   return (
     <DashboardShell

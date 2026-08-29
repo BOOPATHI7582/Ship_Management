@@ -347,5 +347,5 @@ export default function ShipmentsPage() {
 
 async function apiGet(path) {
   const res = await api.get(path)
-  return res.data.data
+  return res.data
 }

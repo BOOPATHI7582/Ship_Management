@@ -10,7 +10,6 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
-import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
 
@@ -53,15 +52,8 @@ public class ManagerCatalogController {
     }
 
     @GetMapping("/clients")
-    @Transactional(readOnly = true)
     public ApiResponse<List<CatalogOptionResponse>> clients() {
-        return ApiResponse.ok(null, clientRepository.findAll().stream()
-                .filter(c -> c.getUser() != null)
-                .sorted((a, b) -> {
-                    String an = displayName(a.getUser());
-                    String bn = displayName(b.getUser());
-                    return an.compareToIgnoreCase(bn);
-                })
+        return ApiResponse.ok(null, clientRepository.findAllWithUser().stream()
                 .map(c -> new CatalogOptionResponse(c.getId(), displayName(c.getUser()), c.getUser().getEmail()))
                 .toList());
     }

@@ -29,6 +29,11 @@ export default function PublicLayout() {
     navigate('/')
   }
 
+  const homeFor = () =>
+    user?.role === 'ADMIN' ? '/admin/users'
+      : user?.role === 'SHIP_MANAGER' ? '/manager/enquiries'
+      : '/dashboard'
+
   const linkClass = ({ isActive }) =>
     `text-sm font-medium transition ${isActive ? 'text-gold-400' : 'text-white/80 hover:text-white'}`
 
@@ -52,7 +57,7 @@ export default function PublicLayout() {
             {isAuthenticated ? (
               <>
                 <Link
-                  to="/dashboard"
+                  to={homeFor()}
                   className="rounded-lg px-4 py-2 text-sm font-semibold text-white transition hover:bg-white/10"
                 >
                   {user?.fullName?.split(' ')[0] || 'Dashboard'}
@@ -120,7 +125,7 @@ export default function PublicLayout() {
               {isAuthenticated ? (
                 <>
                   <Link
-                    to="/dashboard"
+                    to={homeFor()}
                     onClick={() => setMenuOpen(false)}
                     className="rounded-lg px-3 py-2.5 text-sm font-semibold text-gold-400 hover:bg-white/5"
                   >
