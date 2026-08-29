@@ -51,7 +51,6 @@ function buildFormFromPi(pi, invoiceType = 'TAX_INVOICE') {
     insuranceCharges: Number(pi.insuranceCharges ?? 0),
     otherCharges: Number(pi.otherCharges ?? 0),
     additionalCharges: 0,
-    invoiceType: 'TAX_INVOICE',
     taxTreatment: pi.taxTreatment || 'EXEMPT',
     paymentTerms: pi.paymentTerms || '',
     bankDetails: pi.bankDetails || '',
