@@ -30,7 +30,7 @@ export default function PublicLayout() {
   }
 
   const homeFor = () =>
-    user?.role === 'ADMIN' ? '/admin/users'
+    user?.role === 'ADMIN' ? '/admin/dashboard'
       : user?.role === 'SHIP_MANAGER' ? '/manager/enquiries'
       : '/dashboard'
 

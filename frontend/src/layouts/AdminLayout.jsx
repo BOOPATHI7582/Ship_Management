@@ -2,6 +2,7 @@ import { Link } from 'react-router-dom'
 import DashboardShell from '../components/DashboardShell'
 
 const navItems = [
+  { to: '/admin/dashboard', label: 'Dashboard', end: true },
   { to: '/manager/contacts', label: 'Inbox' },
   { to: '/admin/users', label: 'Users' },
   { to: '/admin/clients', label: 'Clients' },
@@ -16,7 +17,7 @@ const navItems = [
 export default function AdminLayout() {
   return (
     <DashboardShell
-      homeTo="/admin/users"
+      homeTo="/admin/dashboard"
       tag="Admin"
       tagClasses="bg-gold-500/20 text-gold-400"
       items={navItems}

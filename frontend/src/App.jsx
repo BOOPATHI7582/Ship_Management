@@ -41,6 +41,7 @@ import NotificationsPage from './pages/client/NotificationsPage'
 import MyMessagesPage from './pages/client/MyMessagesPage'
 import ProfilePage from './pages/client/ProfilePage'
 import UsersPage from './pages/admin/UsersPage'
+import AdminDashboardPage from './pages/admin/DashboardPage'
 import ClientsPage from './pages/admin/ClientsPage'
 import VesselsPage from './pages/admin/VesselsPage'
 import CargoAdminPage from './pages/admin/CargoAdminPage'
@@ -76,7 +77,8 @@ function AdminRoutes() {
   return (
     <Routes>
       <Route element={<AdminLayout />}>
-        <Route index element={<UsersPage />} />
+        <Route index element={<AdminDashboardPage />} />
+        <Route path="dashboard" element={<AdminDashboardPage />} />
         <Route path="users" element={<UsersPage />} />
         <Route path="clients" element={<ClientsPage />} />
         <Route path="vessels" element={<VesselsPage />} />

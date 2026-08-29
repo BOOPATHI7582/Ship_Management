@@ -12,7 +12,7 @@ export default function LoginPage() {
   const [submitting, setSubmitting] = useState(false)
 
   const fallbackFor = (role) =>
-    role === 'ADMIN' ? '/admin/users'
+    role === 'ADMIN' ? '/admin/dashboard'
       : role === 'SHIP_MANAGER' ? '/manager/enquiries' : '/dashboard'
 
   useEffect(() => {
