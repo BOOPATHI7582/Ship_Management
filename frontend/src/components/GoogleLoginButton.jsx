@@ -13,16 +13,15 @@ export default function GoogleLoginButton() {
   const loadedRef = useRef(false)
 
   useEffect(() => {
-    if (!CLIENT_ID || loadedRef.current) return
-    loadedRef.current = true
-    const script = document.createElement('script')
-    script.src = 'https://accounts.google.com/gsi/client'
-    script.async = true
-    script.defer = true
-    document.head.appendChild(script)
+    if (CLIENT_ID && !loadedRef.current) {
+      loadedRef.current = true
+      const script = document.createElement('script')
+      script.src = 'https://accounts.google.com/gsi/client'
+      script.async = true
+      script.defer = true
+      document.head.appendChild(script)
+    }
   }, [])
-
-  if (!CLIENT_ID) return null
 
   function fallbackFor(user) {
     return user?.role === 'ADMIN'
@@ -44,7 +43,12 @@ export default function GoogleLoginButton() {
   }
 
   function handleClick() {
-    if (busy || !window.google?.accounts?.id) return
+    if (busy) return
+    if (!CLIENT_ID) {
+      setError('Google sign-in is not configured yet. Set VITE_GOOGLE_CLIENT_ID to enable it.')
+      return
+    }
+    if (!window.google?.accounts?.id) return
     window.google.accounts.id.initialize({
       client_id: CLIENT_ID,
       callback: (res) => res?.credential && handleCredential(res.credential),
