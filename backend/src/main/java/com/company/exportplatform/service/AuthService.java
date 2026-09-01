@@ -1,6 +1,8 @@
 package com.company.exportplatform.service;
 
 import com.company.exportplatform.dto.request.ForgotPasswordRequest;
+import com.company.exportplatform.dto.request.GoogleLoginRequest;
+import com.company.exportplatform.dto.request.LoginOtpRequest;
 import com.company.exportplatform.dto.request.LoginRequest;
 import com.company.exportplatform.dto.request.RegisterRequest;
 import com.company.exportplatform.dto.request.ResetPasswordRequest;
@@ -40,6 +42,8 @@ public class AuthService {
 
     private static final int RESET_TOKEN_BYTES = 32;
     private static final String RESET_EMAIL_SUBJECT = "ExportPlatform - Password reset request";
+    private static final String LOGIN_OTP_SUBJECT = "ExportPlatform - Your login verification code";
+    private static final int EMAIL_VERIFY_MAX_ATTEMPTS = 5;
 
     private final UserRepository userRepository;
     private final RoleRepository roleRepository;
@@ -52,6 +56,9 @@ public class AuthService {
     private final MailService mailService;
     private final com.company.exportplatform.security.LoginLockoutService loginLockoutService;
     private final AuditService auditService;
+    private final OtpService otpService;
+    private final GoogleLoginService googleLoginService;
+
     private final SecureRandom secureRandom = new SecureRandom();
 
     @Value("${app.password-reset.expiration-minutes:60}")
@@ -59,6 +66,9 @@ public class AuthService {
 
     @Value("${app.email-verification.expiration-hours:24}")
     private long verificationExpirationHours;
+
+    @Value("${app.otp.login-ttl-minutes:10}")
+    private int loginOtpTtlMinutes;
 
     @Value("${app.base-url}")
     private String baseUrl;
@@ -98,13 +108,13 @@ public class AuthService {
     }
 
     /**
-     * Creates a single-use verification token and emails it. Returns the raw
-     * link only when mail delivery is disabled (local development convenience).
+     * Creates a single-use 6-digit OTP and emails it. Returns the raw link
+     * only when mail delivery is disabled (local development convenience).
      */
     private String issueEmailVerification(User user) {
         emailVerificationRepository.deleteByUserIdAndVerifiedAtIsNull(user.getId());
 
-        String rawToken = newToken();
+        String rawToken = newOtpCode();
         com.company.exportplatform.entity.EmailVerification verification =
                 new com.company.exportplatform.entity.EmailVerification();
         verification.setUser(user);
@@ -115,28 +125,63 @@ public class AuthService {
         String link = baseUrl + "/verify-email?token=" + rawToken;
         mailService.sendHtml(user.getEmail(), VERIFY_EMAIL_SUBJECT,
                 buildVerificationEmail(user, link, rawToken));
-        log.info("Issued email verification token for user #{}", user.getId());
+        log.info("Issued email verification OTP for user #{}", user.getId());
         // Raw link is only exposed in the API response when SMTP is not
         // configured (local dev convenience). Never leak it in production.
         return mailService.isMailEnabled() ? null : link;
     }
 
     @Transactional
-    public com.company.exportplatform.dto.response.VerifyEmailResponse verifyEmail(String rawToken) {
+    public com.company.exportplatform.dto.response.VerifyEmailResponse verifyEmail(
+            String rawToken, String email) {
         if (rawToken == null || rawToken.isBlank()) {
-            throw new BadRequestException("This verification link is invalid");
+            throw new BadRequestException("This verification code is invalid");
+        }
+        String token = rawToken.trim();
+
+        // Email present -> resolve the pending record to enforce attempts.
+        if (email != null && !email.isBlank()) {
+            return verifyByPendingEmail(email.trim().toLowerCase(), token);
         }
         com.company.exportplatform.entity.EmailVerification verification =
-                emailVerificationRepository.findByTokenHash(hashToken(rawToken))
-                        .orElseThrow(() -> new BadRequestException("This verification link is invalid"));
+                emailVerificationRepository.findByTokenHash(hashToken(token))
+                        .orElseThrow(() -> new BadRequestException("This verification code is invalid"));
+        return completeVerification(verification);
+    }
 
+    private com.company.exportplatform.dto.response.VerifyEmailResponse verifyByPendingEmail(
+            String email, String token) {
+        User user = userRepository.findByEmail(email)
+                .orElseThrow(() -> new BadRequestException("This verification code is invalid"));
+        com.company.exportplatform.entity.EmailVerification verification =
+                emailVerificationRepository
+                        .findFirstByUserIdAndVerifiedAtIsNullOrderByCreatedAtDesc(user.getId())
+                        .orElseThrow(() -> new BadRequestException("This verification code is invalid or already used"));
+        if (verification.getAttempts() >= EMAIL_VERIFY_MAX_ATTEMPTS) {
+            emailVerificationRepository.delete(verification);
+            throw new BadRequestException("Too many failed attempts. Please request a new verification code.");
+        }
+        if (verification.getExpiresAt().isBefore(LocalDateTime.now())) {
+            emailVerificationRepository.delete(verification);
+            throw new BadRequestException("This verification code has expired. Please request a new one.");
+        }
+        if (!verification.getTokenHash().equals(hashToken(token))) {
+            verification.setAttempts(verification.getAttempts() + 1);
+            emailVerificationRepository.save(verification);
+            throw new BadRequestException("Incorrect verification code. Please try again.");
+        }
+        return completeVerification(verification);
+    }
+
+    private com.company.exportplatform.dto.response.VerifyEmailResponse completeVerification(
+            com.company.exportplatform.entity.EmailVerification verification) {
         if (verification.getVerifiedAt() != null) {
             return new com.company.exportplatform.dto.response.VerifyEmailResponse(
                     verification.getUser().getEmail(), true);
         }
         if (verification.getExpiresAt().isBefore(LocalDateTime.now())) {
             throw new BadRequestException(
-                    "This verification link has expired. Please request a new one from the login page.");
+                    "This verification code has expired. Please request a new one from the login page.");
         }
 
         verification.setVerifiedAt(LocalDateTime.now());
@@ -200,10 +245,79 @@ public class AuthService {
                     ? "Please verify your email before logging in. Check your inbox for the verification link."
                     : "This account has been deactivated");
         }
+        if (user.getPasswordHash() == null) {
+            throw new BadRequestException(
+                    "This account uses Google sign-in. Please log in with your Google account.");
+        }
+
+        // Credentials are correct; prove the sign-in with an OTP emailed to
+        // the account owner before issuing a session token.
         loginLockoutService.recordSuccess(email);
+        String code = otpService.issue(user, OtpService.PURPOSE_LOGIN, loginOtpTtlMinutes);
+        auditService.record(email, "LOGIN_OTP_SENT", "USER", user.getId(), null, null);
+        mailService.sendHtml(email, LOGIN_OTP_SUBJECT, buildLoginOtpEmail(user, code));
+        String devOtp = mailService.isMailEnabled() ? null : code;
+        log.info("Issued login OTP for user #{} (mail enabled: {})",
+                user.getId(), mailService.isMailEnabled());
+        return AuthResponse.otpPending(user, devOtp);
+    }
+
+    @Transactional
+    public AuthResponse verifyLoginOtp(LoginOtpRequest request) {
+        String email = request.email().trim().toLowerCase();
+        User user = userRepository.findByEmail(email)
+                .filter(User::isActive)
+                .orElseThrow(() -> new BadRequestException("Invalid verification code"));
+        otpService.verify(user, OtpService.PURPOSE_LOGIN, request.otp());
         user.setLastLoginAt(LocalDateTime.now());
         auditService.record(email, "LOGIN_SUCCESS", "USER", user.getId(), null, null);
+        loginLockoutService.recordSuccess(email);
+        return issueToken(user);
+    }
 
+    @Transactional
+    public ApiResponse<Void> resendLoginOtp(String email) {
+        String normalized = email == null ? "" : email.trim().toLowerCase();
+        userRepository.findByEmail(normalized)
+                .filter(User::isActive)
+                .filter(user -> user.getPasswordHash() != null)
+                .ifPresent(user -> {
+                    String code = otpService.issue(user, OtpService.PURPOSE_LOGIN, loginOtpTtlMinutes);
+                    mailService.sendHtml(normalized, LOGIN_OTP_SUBJECT, buildLoginOtpEmail(user, code));
+                });
+        return ApiResponse.ok("If your account is ready, a new verification code has been sent.");
+    }
+
+    @Transactional
+    public AuthResponse googleLogin(GoogleLoginRequest request) {
+        GoogleLoginService.GoogleProfile profile = googleLoginService.verify(request.idToken());
+        String email = profile.email().toLowerCase();
+
+        User user = userRepository.findByEmail(email).orElse(null);
+        if (user == null) {
+            user = new User();
+            user.setEmail(email);
+            user.setGoogleSub(profile.sub());
+            user.setFullName(profile.name() != null && !profile.name().isBlank()
+                    ? profile.name().trim() : "Google User");
+            user.setActive(true);
+            user.setRole(roleRepository.findByName(RoleName.CLIENT)
+                    .orElseThrow(() -> new IllegalStateException("CLIENT role is missing from seed data")));
+            user = userRepository.save(user);
+
+            Client clientProfile = new Client();
+            clientProfile.setUser(user);
+            clientRepository.save(clientProfile);
+            log.info("Created Google sign-in account for {}", email);
+        } else {
+            if (user.getGoogleSub() == null) {
+                user.setGoogleSub(profile.sub());
+            }
+            user.setActive(true);
+        }
+        user.setLastLoginAt(LocalDateTime.now());
+        userRepository.save(user);
+        auditService.record(email, "GOOGLE_LOGIN", "USER", user.getId(), null, null);
         return issueToken(user);
     }
 
@@ -270,6 +384,10 @@ public class AuthService {
         return HexFormat.of().formatHex(bytes);
     }
 
+    private String newOtpCode() {
+        return String.format("%06d", secureRandom.nextInt(1_000_000));
+    }
+
     private String hashToken(String rawToken) {
         try {
             MessageDigest digest = MessageDigest.getInstance("SHA-256");
@@ -285,16 +403,32 @@ public class AuthService {
 
     private String buildVerificationEmail(User user, String link, String rawToken) {
         return """
-                <html><body style="font-family:Arial,sans-serif;color:#1f2937;">
-                  <h2>Welcome, %s!</h2>
-                  <p>Confirm your email address to activate your ExportPlatform account.</p>
-                  <p><a href="%s" style="background:#0ea5e9;color:#ffffff;padding:10px 18px;border-radius:6px;text-decoration:none;">Verify my email</a></p>
-                  <p>Or paste this code on the verification page (valid for %d hours):</p>
-                  <p><code>%s</code></p>
-                  <p>If you did not create this account, you can safely ignore this email.</p>
+                <html><body style="font-family:Arial,sans-serif;background:#f8fafc;padding:24px;">
+                  <div style="max-width:520px;margin:0 auto;background:#ffffff;border-radius:12px;padding:32px;border:1px solid #e2e8f0;">
+                    <h2 style="color:#0f172a;margin-top:0">Welcome, %s!</h2>
+                    <p style="color:#334155">Confirm your email address to activate your ExportPlatform account.</p>
+                    <p style="color:#64748b;font-size:13px">Your verification code (valid for %d hours):</p>
+                    <div style="letter-spacing:8px;font-size:28px;font-weight:bold;color:#0a2540;background:#f1f5f9;padding:14px 20px;border-radius:8px;text-align:center;">%s</div>
+                    <p style="color:#64748b;font-size:13px">or <a href="%s" style="color:#c9a227">click here to verify</a>.</p>
+                    <p style="color:#94a3b8;font-size:12px">If you did not create this account, you can safely ignore this email.</p>
+                  </div>
                 </body></html>
-                """.formatted(escapeHtml(user.getFullName()), escapeHtml(link),
-                verificationExpirationHours, rawToken);
+                """.formatted(escapeHtml(user.getFullName()), verificationExpirationHours,
+                rawToken, escapeHtml(link));
+    }
+
+    private String buildLoginOtpEmail(User user, String otp) {
+        return """
+                <html><body style="font-family:Arial,sans-serif;background:#f8fafc;padding:24px;">
+                  <div style="max-width:520px;margin:0 auto;background:#ffffff;border-radius:12px;padding:32px;border:1px solid #e2e8f0;">
+                    <h2 style="color:#0f172a;margin-top:0">Hi %s,</h2>
+                    <p style="color:#334155">Use this one-time code to finish signing in to your ExportPlatform account.</p>
+                    <div style="letter-spacing:8px;font-size:28px;font-weight:bold;color:#0a2540;background:#f1f5f9;padding:14px 20px;border-radius:8px;text-align:center;">%s</div>
+                    <p style="color:#64748b;font-size:13px">The code expires in %d minutes. Do not share it with anyone.</p>
+                    <p style="color:#94a3b8;font-size:12px">If you did not try to sign in, someone may have your password - please reset it.</p>
+                  </div>
+                </body></html>
+                """.formatted(escapeHtml(user.getFullName()), otp, loginOtpTtlMinutes);
     }
 
     private String buildResetEmail(User user, String link, String rawToken) {

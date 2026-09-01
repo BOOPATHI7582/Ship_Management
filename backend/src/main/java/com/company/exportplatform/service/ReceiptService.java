@@ -104,7 +104,7 @@ public class ReceiptService {
                             <strong>%s %s</strong>%s.</p>
                             <p>Receipt number: <strong>%s</strong><br/>
                             The signed copy is attached to this email and always available in your dashboard.</p>
-                            <p>Global Export Pvt. Ltd. — Accounts</p>
+                            <p>ExportPlatform Pvt. Ltd. — Accounts</p>
                             """.formatted(
                             company,
                             receipt.getCurrency(),

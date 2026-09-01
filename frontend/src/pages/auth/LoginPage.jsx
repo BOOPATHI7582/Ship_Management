@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { Link, useLocation, useNavigate } from 'react-router-dom'
 import { useAuth } from '../../context/AuthContext'
 import { apiErrorMessage } from '../../api/axios'
+import GoogleLoginButton from '../../components/GoogleLoginButton'
 
 export default function LoginPage() {
   const { login, isAuthenticated, user } = useAuth()
@@ -21,14 +22,17 @@ export default function LoginPage() {
     }
   }, [isAuthenticated, user, navigate, location.state])
 
-
   async function handleSubmit(e) {
     e.preventDefault()
     setError('')
     setSubmitting(true)
     try {
-      const user = await login(form.email.trim(), form.password)
-      navigate(location.state?.from || fallbackFor(user?.role), { replace: true })
+      const result = await login(form.email.trim(), form.password)
+      if (result.requiresOtp) {
+        navigate('/login/otp', { state: { email: form.email.trim(), devOtp: result.devOtp } })
+        return
+      }
+      navigate(location.state?.from || fallbackFor(result.user?.role), { replace: true })
     } catch (err) {
       setError(apiErrorMessage(err, 'Unable to log in. Please check your credentials.'))
     } finally {
@@ -42,7 +46,7 @@ export default function LoginPage() {
         <Link to="/" className="mb-8 block text-center font-display text-2xl font-bold text-white">
           Export<span className="text-gold-500">Platform</span>
         </Link>
-        <div className="rounded-2xl border border-white/10 bg-white/5 p-8 backdrop-blur">
+        <div className="auth-card">
           <h1 className="font-display text-2xl font-bold text-white">Welcome back</h1>
           <p className="mt-1 text-sm text-white/60">Log in to manage your export operations.</p>
           {new URLSearchParams(window.location.search).get('expired') && (
@@ -67,7 +71,7 @@ export default function LoginPage() {
                 autoComplete="email"
                 value={form.email}
                 onChange={(e) => setForm({ ...form, email: e.target.value })}
-                className="mt-1.5 w-full rounded-lg border border-white/15 bg-navy-900 px-4 py-2.5 text-white placeholder-white/30 focus:border-gold-500 focus:outline-none focus:ring-1 focus:ring-gold-500"
+                className="auth-input"
                 placeholder="you@company.com"
               />
             </div>
@@ -82,7 +86,7 @@ export default function LoginPage() {
                 autoComplete="current-password"
                 value={form.password}
                 onChange={(e) => setForm({ ...form, password: e.target.value })}
-                className="mt-1.5 w-full rounded-lg border border-white/15 bg-navy-900 px-4 py-2.5 text-white placeholder-white/30 focus:border-gold-500 focus:outline-none focus:ring-1 focus:ring-gold-500"
+                className="auth-input"
                 placeholder="••••••••"
               />
             </div>
@@ -95,6 +99,12 @@ export default function LoginPage() {
               {submitting ? 'Logging in…' : 'Log In'}
             </button>
           </form>
+          <div className="my-5 flex items-center gap-3">
+            <span className="h-px flex-1 bg-white/10" />
+            <span className="text-xs uppercase tracking-wider text-white/40">or</span>
+            <span className="h-px flex-1 bg-white/10" />
+          </div>
+          <GoogleLoginButton />
           <p className="mt-6 text-center text-sm text-white/60">
             New to ExportPlatform?{' '}
             <Link to="/register" className="font-semibold text-gold-400 hover:text-gold-500">

@@ -1,5 +1,5 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react'
-import { fetchCurrentUser, loginUser, registerUser } from '../api/auth'
+import { fetchCurrentUser, googleLoginUser, loginOtp, loginUser, registerUser } from '../api/auth'
 import { TOKEN_KEY } from '../api/axios'
 
 const AuthContext = createContext(null)
@@ -35,13 +35,31 @@ export function AuthProvider({ children }) {
     }
   }, [token])
 
-  const login = useCallback(async (email, password) => {
-    const res = await loginUser({ email, password })
+  const applySession = useCallback((res) => {
     localStorage.setItem(TOKEN_KEY, res.data.accessToken)
     setUser(res.data.user)
     setToken(res.data.accessToken)
     return res.data.user
   }, [])
+
+  const login = useCallback(async (email, password) => {
+    const res = await loginUser({ email, password })
+    if (res.data?.requiresOtp) {
+      return { requiresOtp: true, devOtp: res.data?.devOtp || null, user: res.data?.user || null }
+    }
+    return { requiresOtp: false, user: applySession(res) }
+  }, [applySession])
+
+  // Complete the password flow: verify the 6-digit login code and start a session.
+  const finalizeLogin = useCallback(async (email, otp) => {
+    const res = await loginOtp({ email, otp })
+    return applySession(res)
+  }, [applySession])
+
+  const continueWithGoogle = useCallback(async (idToken) => {
+    const res = await googleLoginUser({ idToken })
+    return applySession(res)
+  }, [applySession])
 
   const register = useCallback(async (payload) => {
     // Registration no longer signs the user in: email verification is required.
@@ -64,10 +82,12 @@ export function AuthProvider({ children }) {
       isAdmin: user?.role === 'ADMIN',
       isShipManager: user?.role === 'SHIP_MANAGER',
       login,
+      finalizeLogin,
+      continueWithGoogle,
       register,
       logout,
     }),
-    [user, token, loading, login, register, logout]
+    [user, token, loading, login, finalizeLogin, continueWithGoogle, register, logout]
   )
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>

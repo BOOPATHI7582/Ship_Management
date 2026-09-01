@@ -150,7 +150,7 @@ public class ProformaInvoiceService {
         if (email != null && !email.isBlank()) {
             mailed = mailService.sendHtmlWithAttachment(
                     email,
-                    "Proforma Invoice " + pi.getPiNo() + " - Global Export",
+                    "Proforma Invoice " + pi.getPiNo() + " - ExportPlatform",
                     buildPiEmailBody(pi),
                     pi.getPiNo() + ".pdf",
                     pdf,
@@ -300,7 +300,7 @@ public class ProformaInvoiceService {
                 + money(pi.getGrandTotal(), pi.getCurrency()) + "</strong>.</p>"
                 + "<p style=\"color:#334155\">Bank remittance details are included in the attachment. "
                 + "Once the advance is credited, our operations team will confirm shipment booking.</p>"
-                + "<p style=\"color:#64748b;font-size:12px\">Global Export • accounts@globalexport.example</p>"
+                + "<p style=\"color:#64748b;font-size:12px\">ExportPlatform • accounts@exportplatform.example</p>"
                 + "</div>";
     }
 
@@ -399,7 +399,7 @@ public class ProformaInvoiceService {
     }
 
     private static final String DEFAULT_BANK_DETAILS =
-            "Global Export Pvt. Ltd.\nHDFC Bank, Fort Branch, Mumbai\n"
+            "ExportPlatform Pvt. Ltd.\nHDFC Bank, Fort Branch, Mumbai\n"
                     + "A/C 50200012345678 • IFSC HDFC0000123 • SWIFT HDFCINBB\n"
                     + "Purpose code: P0103 (Export of goods)";
 }

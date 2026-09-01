@@ -68,7 +68,7 @@ public class QuotationPdfService {
         brand.addElement(new Paragraph("GLOBAL EXPORT", heading(16, NAVY)));
         brand.addElement(new Paragraph("Cargo • Vessels • Worldwide Shipping", small(Font.NORMAL, Color.DARK_GRAY)));
         brand.addElement(new Paragraph("D-14 Industrial Estate, Mumbai 400001, India", tiny(Font.NORMAL, Color.GRAY)));
-        brand.addElement(new Paragraph("+91 22 4000 1234  •  sales@globalexport.example", tiny(Font.NORMAL, Color.GRAY)));
+        brand.addElement(new Paragraph("+91 22 4000 1234  •  sales@exportplatform.example", tiny(Font.NORMAL, Color.GRAY)));
         header.addCell(brand);
 
         PdfPCell meta = cell();

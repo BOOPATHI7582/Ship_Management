@@ -75,6 +75,7 @@ public class QuotationService {
     private final NotificationService notificationService;
     private final MailService mailService;
     private final QuotationPdfService quotationPdfService;
+    private final InvoiceService invoiceService;
 
     // ---------- manager side ----------
 
@@ -224,6 +225,8 @@ public class QuotationService {
             notifyClient(quotation, "Quotation accepted",
                     "You accepted quotation " + quotation.getQuoteNo() + ". A proforma invoice will follow shortly.",
                     "/client/enquiries/" + enquiry.getId());
+
+            autoIssueTaxInvoice(quotation);
         } else {
             quotation.setStatus(QuotationStatus.REJECTED);
             quotation.setRejectedAt(LocalDateTime.now());
@@ -379,6 +382,24 @@ public class QuotationService {
         thread.setClosedAt(LocalDateTime.now());
     }
 
+    /**
+     * When the client accepts the quotation (conditions accepted), the backend
+     * automatically issues a Tax Invoice and emails it (invoice + tax bill).
+     * Runs best-effort so acceptance is never blocked by invoicing issues.
+     */
+    private void autoIssueTaxInvoice(Quotation quotation) {
+        User creator = quotation.getCreatedBy();
+        if (creator == null || creator.getEmail() == null || creator.getEmail().isBlank()) {
+            log.warn("Quotation {} has no creator - skipping auto invoice", quotation.getQuoteNo());
+            return;
+        }
+        try {
+            invoiceService.issueFromAcceptedQuotation(quotation.getId(), creator.getEmail());
+        } catch (Exception ex) {
+            log.error("Auto-invoice failed for quotation {}: {}", quotation.getQuoteNo(), ex.getMessage());
+        }
+    }
+
     private void markViewed(Quotation quotation) {
         if (quotation.getStatus() == QuotationStatus.SENT) {
             quotation.setStatus(QuotationStatus.VIEWED);
@@ -398,7 +419,7 @@ public class QuotationService {
                                     .format(quotation.getValidUntil()) + ")" : "")
                     + "</p>"
                     + "<p>You can review and respond online at <b>/quotation/" + quotation.getSecureToken() + "</b>.</p>"
-                    + "<p>Warm regards,<br/>Global Export Operations Team</p></div>";
+                    + "<p>Warm regards,<br/>ExportPlatform Operations Team</p></div>";
             byte[] pdf = quotationPdfService.render(toResponse(quotation));
             mailService.sendHtmlWithAttachment(quotation.getContactEmail(),
                     "Quotation " + quotation.getQuoteNo() + " - " + enquiry.getReferenceNo(),

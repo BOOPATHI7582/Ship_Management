@@ -22,6 +22,8 @@ public interface InvoiceRepository extends JpaRepository<Invoice, Long>, JpaSpec
 
     List<Invoice> findByProformaInvoiceIdAndStatusNot(Long proformaInvoiceId, InvoiceStatus status);
 
+    List<Invoice> findByQuotationIdAndStatusNot(Long quotationId, InvoiceStatus status);
+
     long countByClientId(Long clientId);
 
     long countByStatus(InvoiceStatus status);

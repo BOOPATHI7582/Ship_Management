@@ -37,6 +37,7 @@ public class NegotiationService {
     private final EnquiryRepository enquiryRepository;
     private final UserRepository userRepository;
     private final NotificationService notificationService;
+    private final TradeEmailService tradeEmailService;
 
     // ---------- Manager side ----------
 
@@ -169,6 +170,8 @@ public class NegotiationService {
                         ? " of " + enquiry.getCurrency() + " " + message.getOfferPrice() : "")
                         + ". Quotation paperwork follows next.",
                 "/client/enquiries/" + enquiry.getId());
+
+        tradeEmailService.sendAcceptedTermsEmail(enquiry, message);
 
         return toResponse(thread);
     }

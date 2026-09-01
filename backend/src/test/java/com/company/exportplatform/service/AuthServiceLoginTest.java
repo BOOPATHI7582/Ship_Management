@@ -27,6 +27,7 @@ import java.util.Optional;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.doThrow;
@@ -59,6 +60,10 @@ class AuthServiceLoginTest {
     private MailService mailService;
     @Mock
     private LoginLockoutService loginLockoutService;
+    @Mock
+    private OtpService otpService;
+    @Mock
+    private GoogleLoginService googleLoginService;
 
     private AuthService service;
 
@@ -68,7 +73,8 @@ class AuthServiceLoginTest {
                 passwordResetRepository, emailVerificationRepository, passwordEncoder,
                 authenticationManager, jwtService, mailService, loginLockoutService,
                 new AuditService(org.mockito.Mockito.mock(com.company.exportplatform.repository.AuditLogRepository.class),
-                        new com.fasterxml.jackson.databind.ObjectMapper()));
+                        new com.fasterxml.jackson.databind.ObjectMapper()),
+                otpService, googleLoginService);
     }
 
     private LoginRequest login(String password) {
@@ -93,8 +99,35 @@ class AuthServiceLoginTest {
     }
 
     @Test
-    @DisplayName("successful login resets failures and returns a token")
-    void successfulLoginResetsAndIssuesToken() {
+    @DisplayName("successful login resets lockout and requires an emailed OTP before a token")
+    void successfulLoginRequestsOtpInsteadOfToken() {
+        User user = new User();
+        user.setId(9L);
+        user.setEmail(EMAIL);
+        user.setActive(true);
+        user.setPasswordHash("hash");
+        Role role = new Role();
+        role.setName(RoleName.ADMIN);
+        user.setRole(role);
+
+        when(userRepository.findByEmail(EMAIL)).thenReturn(Optional.of(user));
+        when(otpService.issue(any(User.class), eq(OtpService.PURPOSE_LOGIN), anyInt()))
+                .thenReturn("123456");
+        when(mailService.isMailEnabled()).thenReturn(false);
+
+        AuthResponse response = service.login(login("right"));
+
+        verify(loginLockoutService).checkAllowed(EMAIL);
+        verify(loginLockoutService).recordSuccess(EMAIL);
+        verify(otpService).issue(eq(user), eq(OtpService.PURPOSE_LOGIN), anyInt());
+        assertThat(response.isRequiresOtp()).isTrue();
+        assertThat(response.getAccessToken()).isNull();
+        assertThat(response.getDevOtp()).isEqualTo("123456");
+    }
+
+    @Test
+    @DisplayName("verifying the login OTP issues the session token")
+    void verifyLoginOtpIssuesToken() {
         User user = new User();
         user.setId(9L);
         user.setEmail(EMAIL);
@@ -107,10 +140,12 @@ class AuthServiceLoginTest {
         when(jwtService.generateToken(user)).thenReturn("jwt-token");
         when(jwtService.getExpirationMs()).thenReturn(1000L);
 
-        AuthResponse response = service.login(login("right"));
+        com.company.exportplatform.dto.request.LoginOtpRequest request =
+                new com.company.exportplatform.dto.request.LoginOtpRequest(EMAIL, "123456");
 
-        verify(loginLockoutService).checkAllowed(EMAIL);
-        verify(loginLockoutService).recordSuccess(EMAIL);
+        AuthResponse response = service.verifyLoginOtp(request);
+
+        verify(otpService).verify(user, OtpService.PURPOSE_LOGIN, "123456");
         assertThat(response.getAccessToken()).isEqualTo("jwt-token");
     }
 

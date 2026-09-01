@@ -70,22 +70,25 @@ export default function RegisterPage() {
           <div className="rounded-2xl border border-emerald-400/20 bg-white/5 p-8 text-center backdrop-blur">
             <h1 className="font-display text-2xl font-bold text-white">Verify your email</h1>
             <p className="mt-3 text-sm leading-relaxed text-white/70">
-              We sent a verification link to{' '}
+              We sent a 6-digit verification code to{' '}
               <span className="font-semibold text-gold-400">{pendingEmail}</span>.
-              Click the link in the email to activate your account before logging in.
+              Enter the code on the verification page to activate your account before logging in.
             </p>
             {devLink && (
               <div className="mt-5 rounded-lg border border-amber-300/30 bg-amber-400/10 p-4 text-left text-xs text-amber-200">
                 <p className="font-semibold">Mail delivery is disabled locally.</p>
+                <p className="mt-1">
+                  Open the development link below to see your code (it will still appear in your
+                  inbox when email is configured).
+                </p>
                 <a href={devLink} className="mt-1 block break-all font-mono underline">{devLink}</a>
               </div>
             )}
             <Link
-              to="/login"
-              state={{ from: '/dashboard' }}
+              to="/verify-email"
               className="btn-primary mt-6 inline-block w-full"
             >
-              Go to Login
+              Enter Verification Code
             </Link>
           </div>
         </div>

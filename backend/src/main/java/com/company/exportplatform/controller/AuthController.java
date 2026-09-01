@@ -42,7 +42,7 @@ public class AuthController {
     public ApiResponse<com.company.exportplatform.dto.response.VerifyEmailResponse> verifyEmail(
             @Valid @RequestBody com.company.exportplatform.dto.request.VerifyEmailRequest request) {
         return ApiResponse.ok("Email verified successfully. You can now log in.",
-                authService.verifyEmail(request.token()));
+                authService.verifyEmail(request.token(), request.email()));
     }
 
     @PostMapping("/resend-verification")
@@ -55,7 +55,28 @@ public class AuthController {
 
     @PostMapping("/login")
     public ApiResponse<AuthResponse> login(@Valid @RequestBody LoginRequest request) {
-        return ApiResponse.ok("Logged in successfully", authService.login(request));
+        return ApiResponse.ok("If your sign-in is secured, a verification code has been sent.",
+                authService.login(request));
+    }
+
+    @PostMapping("/login/otp")
+    public ApiResponse<AuthResponse> verifyLoginOtp(
+            @Valid @RequestBody com.company.exportplatform.dto.request.LoginOtpRequest request) {
+        return ApiResponse.ok("Logged in successfully", authService.verifyLoginOtp(request));
+    }
+
+    @PostMapping("/login/otp/resend")
+    public ApiResponse<Void> resendLoginOtp(
+            @Valid @RequestBody com.company.exportplatform.dto.request.ResendVerificationRequest request,
+            jakarta.servlet.http.HttpServletRequest httpRequest) {
+        rateLimitService.checkForgotPassword(clientIp(httpRequest));
+        return authService.resendLoginOtp(request.email());
+    }
+
+    @PostMapping("/google")
+    public ApiResponse<AuthResponse> googleLogin(
+            @Valid @RequestBody com.company.exportplatform.dto.request.GoogleLoginRequest request) {
+        return ApiResponse.ok("Logged in successfully", authService.googleLogin(request));
     }
 
     @GetMapping("/me")

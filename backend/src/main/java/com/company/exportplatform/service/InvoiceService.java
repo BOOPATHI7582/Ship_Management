@@ -222,6 +222,50 @@ public class InvoiceService {
         return toResponse(saved);
     }
 
+    /**
+     * Workflow automation: when a client accepts a quotation ("conditions
+     * accepted"), issues a Tax Invoice directly from that accepted quotation
+     * and emails it to the client (the PDF carries the full tax bill). Safe to
+     * call repeatedly - an existing live invoice for the quotation is reused.
+     */
+    @Transactional
+    public InvoiceResponse issueFromAcceptedQuotation(Long quotationId, String staffEmail) {
+        Quotation quotation = quotationRepository.findById(quotationId)
+                .orElseThrow(() -> new ResourceNotFoundException("Quotation not found"));
+        if (quotation.getStatus() != QuotationStatus.ACCEPTED) {
+            throw new BadRequestException("Only accepted quotations can be auto-invoiced");
+        }
+        List<Invoice> live = invoiceRepository
+                .findByQuotationIdAndStatusNot(quotationId, InvoiceStatus.CANCELLED);
+        if (live.stream().anyMatch(i -> i.getInvoiceType() == InvoiceType.TAX_INVOICE)) {
+            Invoice existing = live.stream()
+                    .filter(i -> i.getInvoiceType() == InvoiceType.TAX_INVOICE)
+                    .findFirst().orElseThrow();
+            log.info("Quotation {} already invoiced as {} - reusing it",
+                    quotation.getQuoteNo(), existing.getInvoiceNo());
+            return toResponse(existing);
+        }
+
+        List<InvoiceItemRequest> items = quotation.getItems().stream()
+                .map(item -> new InvoiceItemRequest(
+                        item.getDescription(), null, item.getQuantity(),
+                        item.getUnit(), item.getRatePerUnit()))
+                .toList();
+        InvoiceRequest request = new InvoiceRequest(
+                null, quotationId, "TAX_INVOICE",
+                null, null, null, null, null, null,           // due/place/exchange/ports/export ref
+                null, null, null, null, null, null, null,      // charges -> fall back to quotation
+                null,                                          // tax treatment -> fall back to quotation
+                null, null, null, null,                        // payment/bank/notes/terms
+                items);
+
+        InvoiceResponse invoice = issue(staffEmail, request);
+        send(invoice.id(), staffEmail);
+        log.info("Auto-issued tax invoice {} for accepted quotation {}", invoice.invoiceNo(),
+                quotation.getQuoteNo());
+        return invoice;
+    }
+
     @Transactional(readOnly = true)
     public InvoiceResponse detailForManager(Long id) {
         return toResponse(findInvoice(id));
@@ -242,7 +286,7 @@ public class InvoiceService {
         if (email != null && !email.isBlank()) {
             mailed = mailService.sendHtmlWithAttachment(
                     email,
-                    "Tax Invoice " + invoice.getInvoiceNo() + " - Global Export",
+                    "Tax Invoice " + invoice.getInvoiceNo() + " - ExportPlatform",
                     buildEmailBody(invoice),
                     invoice.getInvoiceNo() + ".pdf",
                     pdf,
@@ -377,7 +421,7 @@ public class InvoiceService {
                 + "</strong>" + (invoice.getDueDate() != null ? ", due by " + invoice.getDueDate() : "")
                 + ".</p>"
                 + "<p style=\"color:#334155\">Kindly arrange payment through the bank details printed on the invoice.</p>"
-                + "<p style=\"color:#64748b;font-size:12px\">Global Export • accounts@globalexport.example</p>"
+                + "<p style=\"color:#64748b;font-size:12px\">ExportPlatform • accounts@exportplatform.example</p>"
                 + "</div>";
     }
 

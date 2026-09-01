@@ -71,7 +71,7 @@ public class InvoicePdfService {
         brand.addElement(new Paragraph("GLOBAL EXPORT PVT. LTD.", heading(15, NAVY)));
         brand.addElement(new Paragraph("D-14 Industrial Estate, Mumbai 400001, India", small(Font.NORMAL, Color.DARK_GRAY)));
         brand.addElement(new Paragraph("GSTIN: 27ABCDE1234F1Z5   PAN: ABCDE1234F", tiny(Font.NORMAL, Color.GRAY)));
-        brand.addElement(new Paragraph("+91 22 4000 1234  •  accounts@globalexport.example", tiny(Font.NORMAL, Color.GRAY)));
+        brand.addElement(new Paragraph("+91 22 4000 1234  •  accounts@exportplatform.example", tiny(Font.NORMAL, Color.GRAY)));
         header.addCell(brand);
 
         PdfPCell meta = cell();

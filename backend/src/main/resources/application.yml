@@ -19,6 +19,12 @@ app:
   base-url: ${APP_BASE_URL:http://localhost:5173}
   password-reset:
     expiration-minutes: ${PASSWORD_RESET_EXPIRATION_MINUTES:60}
+  email-verification:
+    expiration-hours: ${EMAIL_VERIFICATION_EXPIRATION_HOURS:24}
+  otp:
+    login-ttl-minutes: ${LOGIN_OTP_TTL_MINUTES:10}
+  google:
+    client-id: ${GOOGLE_CLIENT_ID:}
   storage:
     provider: ${STORAGE_PROVIDER:local}
     local-dir: ${STORAGE_LOCAL_DIR:uploads}
