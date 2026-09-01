@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { useAuth } from '../../context/AuthContext'
 import { apiErrorMessage } from '../../api/axios'
+import GoogleLoginButton from '../../components/GoogleLoginButton'
 
 export default function RegisterPage() {
   const { register, isAuthenticated, user } = useAuth()
@@ -162,6 +163,12 @@ export default function RegisterPage() {
               {submitting ? 'Creating account…' : 'Create Account'}
             </button>
           </form>
+          <div className="my-5 flex items-center gap-3">
+            <span className="h-px flex-1 bg-white/10" />
+            <span className="text-xs uppercase tracking-wider text-white/40">or</span>
+            <span className="h-px flex-1 bg-white/10" />
+          </div>
+          <GoogleLoginButton />
           <p className="mt-6 text-center text-sm text-white/60">
             Already have an account?{' '}
             <Link to="/login" className="font-semibold text-gold-400 hover:text-gold-500">
