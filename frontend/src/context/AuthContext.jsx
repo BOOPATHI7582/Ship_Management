@@ -45,7 +45,7 @@ export function AuthProvider({ children }) {
   const login = useCallback(async (email, password) => {
     const res = await loginUser({ email, password })
     if (res.data?.requiresOtp) {
-      return { requiresOtp: true, devOtp: res.data?.devOtp || null, user: res.data?.user || null }
+      return { requiresOtp: true, user: res.data?.user || null }
     }
     return { requiresOtp: false, user: applySession(res) }
   }, [applySession])

@@ -257,6 +257,9 @@ public class AuthService {
         auditService.record(email, "LOGIN_OTP_SENT", "USER", user.getId(), null, null);
         mailService.sendHtml(email, LOGIN_OTP_SUBJECT, buildLoginOtpEmail(user, code));
         String devOtp = mailService.isMailEnabled() ? null : code;
+        if (devOtp != null) {
+            log.warn("Development login OTP for {}: {} (mail delivery is disabled; never shown in the UI)", email, devOtp);
+        }
         log.info("Issued login OTP for user #{} (mail enabled: {})",
                 user.getId(), mailService.isMailEnabled());
         return AuthResponse.otpPending(user, devOtp);

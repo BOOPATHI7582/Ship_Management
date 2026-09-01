@@ -10,7 +10,6 @@ export default function VerifyLoginOtpPage() {
   const navigate = useNavigate()
   const { state } = useLocation()
   const [email, setEmail] = useState(state?.email || '')
-  const devOtp = state?.devOtp || null
   const [otp, setOtp] = useState('')
   const [error, setError] = useState('')
   const [submitting, setSubmitting] = useState(false)

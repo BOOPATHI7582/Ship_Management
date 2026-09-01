@@ -29,7 +29,7 @@ export default function LoginPage() {
     try {
       const result = await login(form.email.trim(), form.password)
       if (result.requiresOtp) {
-        navigate('/login/otp', { state: { email: form.email.trim(), devOtp: result.devOtp } })
+        navigate('/login/otp', { state: { email: form.email.trim() } })
         return
       }
       navigate(location.state?.from || fallbackFor(result.user?.role), { replace: true })
