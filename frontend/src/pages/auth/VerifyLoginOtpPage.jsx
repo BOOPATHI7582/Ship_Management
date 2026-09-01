@@ -108,12 +108,6 @@ export default function VerifyLoginOtpPage() {
                 </button>
               </div>
             </div>
-            {devOtp && (
-              <div className="rounded-lg border border-amber-300/30 bg-amber-400/10 p-3 text-center text-xs text-amber-200">
-                Mail delivery is disabled locally. Dev code:{' '}
-                <span className="font-mono text-sm font-bold tracking-widest">{devOtp}</span>
-              </div>
-            )}
             <button type="submit" disabled={submitting || otp.length < 6} className="btn-primary w-full">
               {submitting ? 'Verifying…' : 'Verify & Log In'}
             </button>
