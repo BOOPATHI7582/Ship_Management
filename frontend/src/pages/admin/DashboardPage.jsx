@@ -92,13 +92,13 @@ export default function AdminDashboardPage() {
         <CardsSkeleton count={8} />
       ) : (
         <>
-          <div className="grid grid-cols-2 gap-4 xl:grid-cols-4">
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
             <KpiCard label="Collected" value={money(totals.totalCollected)} accent="text-emerald-600" />
             <KpiCard label="Invoiced" value={money(totals.totalInvoiced)} />
             <KpiCard label="Outstanding" value={money(totals.outstanding)} accent={Number(totals.outstanding) > 0 ? 'text-amber-600' : undefined} />
             <KpiCard label="Active clients" value={totals.clients} />
           </div>
-          <div className="grid grid-cols-2 gap-4 xl:grid-cols-4">
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
             <KpiCard label="Active shipments" value={totals.activeShipments} />
             <KpiCard label="Completed shipments" value={totals.completedShipments} />
             <KpiCard label="Open enquiries" value={totals.openEnquiries} />

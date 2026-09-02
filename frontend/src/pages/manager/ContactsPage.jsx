@@ -114,7 +114,7 @@ export default function ContactsPage() {
       {data && data.content.length > 0 && (
         <>
           {/* Desktop table */}
-          <div className="hidden overflow-hidden rounded-xl border border-navy-100 bg-white shadow-sm md:block">
+          <div className="hidden overflow-x-auto rounded-xl border border-navy-100 bg-white shadow-sm md:block">
             <table className="min-w-full divide-y divide-navy-100 text-left text-sm">
               <thead className="bg-navy-50 text-xs uppercase tracking-wide text-navy-500">
                 <tr>

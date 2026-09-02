@@ -45,7 +45,7 @@ export default function CategoriesPage() {
       {error && <div className="rounded-lg bg-red-50 px-4 py-3 text-sm text-red-700">{error}</div>}
 
       {data && (
-        <div className="overflow-hidden rounded-2xl border border-navy-100 bg-white shadow-sm">
+        <div className="overflow-x-auto rounded-2xl border border-navy-100 bg-white shadow-sm">
           <table className="w-full text-left text-sm">
             <thead className="bg-navy-50 text-xs uppercase tracking-wide text-navy-500">
               <tr>

@@ -128,9 +128,9 @@ export default function DashboardShell({
         </div>
       </header>
 
-      <div className="container-page flex gap-8 py-8">
-        <aside className="hidden w-56 shrink-0 md:block">
-          <nav className="sticky top-24 rounded-2xl border border-navy-100 bg-white p-3 shadow-sm">
+      <div className="mx-auto flex w-full max-w-screen-2xl items-start gap-6 px-4 py-8 sm:px-6 lg:px-8">
+        <aside className="hidden w-64 shrink-0 md:block">
+          <nav className="sticky top-24 overflow-hidden rounded-2xl border border-navy-100 bg-white p-3 shadow-sm">
             {sidebarBody}
           </nav>
         </aside>

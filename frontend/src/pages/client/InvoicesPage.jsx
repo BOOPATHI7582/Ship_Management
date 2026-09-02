@@ -150,7 +150,7 @@ export default function InvoicesPage() {
 
       {data && (
         <>
-          <div className="overflow-hidden rounded-2xl border border-navy-100 bg-white shadow-sm">
+          <div className="overflow-x-auto rounded-2xl border border-navy-100 bg-white shadow-sm">
             <table className="w-full text-left text-sm">
               <thead className="bg-navy-50 text-xs uppercase tracking-wide text-navy-500">
                 <tr>
@@ -160,7 +160,7 @@ export default function InvoicesPage() {
                   <th className="px-5 py-3 text-right">Total</th>
                   <th className="px-5 py-3 text-right hidden sm:table-cell">Balance</th>
                   <th className="px-5 py-3">Status</th>
-                  <th className="px-5 py-3 text-right">PDF</th>
+                  <th className="px-5 py-3 text-right">Actions</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-navy-100">
@@ -176,24 +176,50 @@ export default function InvoicesPage() {
                         {inv.status.replace(/_/g, ' ')}
                       </span>
                     </td>
-                    <td className="px-5 py-3.5 text-right">
-                      {inv.status !== 'CANCELLED' && Number(inv.balanceAmount) > 0 && (
-                        <button type="button" onClick={() => setPaying(inv)} className={`${primaryBtnCls} mr-2`}>
-                          Pay Now
-                        </button>
-                      )}
-                      {inv.status !== 'CANCELLED' ? (
-                        <>
-                          <button type="button" onClick={() => viewPdf(clientInvoicePdfUrl(inv.id))} className={`${secondaryBtnCls} mr-2`}>
-                            View
+                    <td className="px-5 py-3.5">
+                      <div className="flex items-center justify-end gap-2">
+                        {inv.status !== 'CANCELLED' && Number(inv.balanceAmount) > 0 && (
+                          <button
+                            type="button"
+                            onClick={() => setPaying(inv)}
+                            className="inline-flex items-center gap-1.5 rounded-2xl bg-gradient-to-r from-gold-400 via-gold-500 to-gold-600 px-4 py-2 text-xs font-bold text-navy-950 shadow-lg shadow-gold-500/30 transition hover:shadow-xl hover:shadow-gold-500/50 hover:brightness-105 active:scale-95"
+                          >
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="h-4 w-4">
+                              <rect x="2.5" y="5" width="19" height="14" rx="2.5" />
+                              <path strokeLinecap="round" d="M2.5 10h19" />
+                            </svg>
+                            Pay Now
                           </button>
-                          <button type="button" onClick={() => downloadClientInvoicePdf(inv.id, inv.invoiceNo)} className={secondaryBtnCls}>
-                            Download
-                          </button>
-                        </>
-                      ) : (
-                        <span className="text-xs text-navy-400">—</span>
-                      )}
+                        )}
+                        {inv.status !== 'CANCELLED' ? (
+                          <>
+                            <button
+                              type="button"
+                              onClick={() => viewPdf(clientInvoicePdfUrl(inv.id))}
+                              className="inline-flex items-center gap-1.5 rounded-2xl bg-gradient-to-r from-sky-500 to-blue-600 px-4 py-2 text-xs font-bold text-white shadow-lg shadow-sky-500/30 transition hover:shadow-xl hover:shadow-sky-500/50 hover:brightness-105 active:scale-95"
+                            >
+                              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="h-4 w-4">
+                                <path strokeLinecap="round" strokeLinejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                                <path strokeLinecap="round" strokeLinejoin="round" d="M2.458 12C3.732 7.943 7.523 5.5 12 5.5s8.268 2.443 9.542 6.5c-1.274 4.057-5.065 6.5-9.542 6.5S3.732 16.057 2.458 12z" />
+                              </svg>
+                              View
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => downloadClientInvoicePdf(inv.id, inv.invoiceNo)}
+                              className="inline-flex items-center gap-1.5 rounded-2xl bg-gradient-to-r from-emerald-500 to-teal-600 px-4 py-2 text-xs font-bold text-white shadow-lg shadow-emerald-500/30 transition hover:shadow-xl hover:shadow-emerald-500/50 hover:brightness-105 active:scale-95"
+                            >
+                              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="h-4 w-4">
+                                <path strokeLinecap="round" strokeLinejoin="round" d="M12 3v10m0 0l4-4m-4 4l-4-4" />
+                                <path strokeLinecap="round" strokeLinejoin="round" d="M4 17v2a2 2 0 002 2h12a2 2 0 002-2v-2" />
+                              </svg>
+                              Download
+                            </button>
+                          </>
+                        ) : (
+                          <span className="text-xs text-navy-400">—</span>
+                        )}
+                      </div>
                     </td>
                   </tr>
                 ))}

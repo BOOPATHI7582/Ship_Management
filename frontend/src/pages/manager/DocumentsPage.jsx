@@ -93,7 +93,7 @@ export default function DocumentsPage() {
       )}
 
       {docs && (
-        <div className="overflow-hidden rounded-2xl border border-navy-100 bg-white shadow-sm">
+        <div className="overflow-x-auto rounded-2xl border border-navy-100 bg-white shadow-sm">
           <table className="w-full text-left text-sm">
             <thead className="bg-navy-50 text-xs uppercase tracking-wide text-navy-500">
               <tr>
