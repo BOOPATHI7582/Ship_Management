@@ -1,5 +1,6 @@
 services:
   # Spring Boot API (public web service)
+  # Database: managed Aiven MySQL (external to Render).
   - type: web
     name: exportplatform-api
     runtime: docker
@@ -11,27 +12,13 @@ services:
     envVars:
       - key: SPRING_PROFILES_ACTIVE
         value: prod
-      # DB wiring from the private MySQL service below
-      - key: DB_HOST
-        fromService:
-          name: exportplatform-mysql
-          type: pserv
-          property: host
-      - key: DB_PORT
-        fromService:
-          name: exportplatform-mysql
-          type: pserv
-          property: port
+      # Aiven MySQL connection (created on Aiven, not part of this blueprint).
+      - key: SPRING_DATASOURCE_URL
+        sync: false            # e.g. jdbc:mysql://avnadmin:...@host:port/defaultdb?ssl-mode=REQUIRED
       - key: SPRING_DATASOURCE_USERNAME
-        fromService:
-          name: exportplatform-mysql
-          type: pserv
-          envVarKey: MYSQL_USER
+        sync: false            # avnadmin
       - key: SPRING_DATASOURCE_PASSWORD
-        fromService:
-          name: exportplatform-mysql
-          type: pserv
-          envVarKey: MYSQL_PASSWORD
+        sync: false            # Aiven password
       - key: JWT_SECRET
         generateValue: true
       - key: APP_BASE_URL
@@ -54,26 +41,3 @@ services:
         sync: false
       - key: RAZORPAY_KEY_SECRET
         sync: false
-
-  # MySQL 8 (private service, reachable only from inside Render)
-  # NOTE: Render has no free tier for private services.
-  # 0.5c-512mb (~$7/mo) + 10 GB disk (~$2.5/mo).
-  - type: pserv
-    name: exportplatform-mysql
-    runtime: docker
-    plan: 0.5c-512mb
-    region: singapore
-    repo: https://github.com/render-examples/mysql.git
-    envVars:
-      - key: MYSQL_DATABASE
-        value: shimanagement
-      - key: MYSQL_USER
-        value: exportapp
-      - key: MYSQL_PASSWORD
-        generateValue: true
-      - key: MYSQL_ROOT_PASSWORD
-        generateValue: true
-    disk:
-      name: mysql-data
-      mountPath: /var/lib/mysql
-      sizeGB: 10
