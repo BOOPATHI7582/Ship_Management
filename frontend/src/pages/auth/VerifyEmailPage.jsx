@@ -49,7 +49,7 @@ export default function VerifyEmailPage() {
     }
     setVerifying(true)
     try {
-      const res = await verifyEmail(token, email.trim().toLowerCase())
+      const res = await verifyEmail(token || otp, email.trim().toLowerCase())
       setEmail(res.data?.user?.email || email.trim())
       establishSession(res.data)
       setOtp('')
