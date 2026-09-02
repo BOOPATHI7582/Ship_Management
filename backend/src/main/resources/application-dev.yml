@@ -1,8 +1,8 @@
 spring:
   datasource:
-    url: ${DB_URL:jdbc:mysql://localhost:3306/shimanagment?useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=UTC&createDatabaseIfNotExist=true}
-    username: ${DB_USERNAME:root}
-    password: ${DB_PASSWORD:1234}
+    url: ${DB_URL:jdbc:mysql://mysql-10afdaf4-shipmanagement.l.aivencloud.com:19172/defaultdb?ssl-mode=REQUIRED&serverTimezone=UTC}
+    username: ${DB_USERNAME:avnadmin}
+    password: ${DB_PASSWORD:change-me}
     driver-class-name: com.mysql.cj.jdbc.Driver
 
     hikari:
