@@ -8,14 +8,6 @@ export async function loginUser(payload) {
   return api.post('/auth/login', payload)
 }
 
-export async function loginOtp(payload) {
-  return api.post('/auth/login/otp', payload)
-}
-
-export async function resendLoginOtp(email) {
-  return api.post('/auth/login/otp/resend', { email })
-}
-
 export async function googleLoginUser(payload) {
   return api.post('/auth/google', payload)
 }

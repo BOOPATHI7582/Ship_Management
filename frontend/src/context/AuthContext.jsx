@@ -1,5 +1,5 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react'
-import { fetchCurrentUser, googleLoginUser, loginOtp, loginUser, registerUser } from '../api/auth'
+import { fetchCurrentUser, googleLoginUser, loginUser, registerUser } from '../api/auth'
 import { TOKEN_KEY } from '../api/axios'
 
 const AuthContext = createContext(null)
@@ -35,30 +35,26 @@ export function AuthProvider({ children }) {
     }
   }, [token])
 
-  const applySession = useCallback((res) => {
-    localStorage.setItem(TOKEN_KEY, res.data.accessToken)
-    setUser(res.data.user)
-    setToken(res.data.accessToken)
-    return res.data.user
+  // data is a raw AuthResponse: { accessToken, tokenType, expiresInMs, user }
+  const applySession = useCallback((data) => {
+    localStorage.setItem(TOKEN_KEY, data.accessToken)
+    setUser(data.user)
+    setToken(data.accessToken)
+    return data.user
   }, [])
 
   const login = useCallback(async (email, password) => {
     const res = await loginUser({ email, password })
-    if (res.data?.requiresOtp) {
-      return { requiresOtp: true, user: res.data?.user || null }
-    }
-    return { requiresOtp: false, user: applySession(res) }
+    return applySession(res.data)
   }, [applySession])
 
-  // Complete the password flow: verify the 6-digit login code and start a session.
-  const finalizeLogin = useCallback(async (email, otp) => {
-    const res = await loginOtp({ email, otp })
-    return applySession(res)
-  }, [applySession])
+  // Establish a session from a raw AuthResponse (e.g. after email verification
+  // returns a token).
+  const establishSession = useCallback((data) => applySession(data), [applySession])
 
   const continueWithGoogle = useCallback(async (idToken) => {
     const res = await googleLoginUser({ idToken })
-    return applySession(res)
+    return applySession(res.data)
   }, [applySession])
 
   const register = useCallback(async (payload) => {
@@ -82,12 +78,12 @@ export function AuthProvider({ children }) {
       isAdmin: user?.role === 'ADMIN',
       isShipManager: user?.role === 'SHIP_MANAGER',
       login,
-      finalizeLogin,
+      establishSession,
       continueWithGoogle,
       register,
       logout,
     }),
-    [user, token, loading, login, finalizeLogin, continueWithGoogle, register, logout]
+    [user, token, loading, login, establishSession, continueWithGoogle, register, logout]
   )
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>

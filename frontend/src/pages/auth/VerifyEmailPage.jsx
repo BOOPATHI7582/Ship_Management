@@ -1,12 +1,15 @@
 import { useEffect, useState } from 'react'
-import { Link, useSearchParams } from 'react-router-dom'
+import { Link, useNavigate, useSearchParams } from 'react-router-dom'
 import { verifyEmail, resendVerification } from '../../api/verification'
 import { apiErrorMessage } from '../../api/axios'
+import { useAuth } from '../../context/AuthContext'
 import OtpInput from '../../components/OtpInput'
 
 export default function VerifyEmailPage() {
   const [searchParams] = useSearchParams()
   const token = searchParams.get('token') || ''
+  const { establishSession } = useAuth()
+  const navigate = useNavigate()
 
   const [state, setState] = useState(token ? 'verifying' : 'code')
   const [email, setEmail] = useState('')
@@ -21,7 +24,8 @@ export default function VerifyEmailPage() {
     verifyEmail(token)
       .then((res) => {
         if (cancelled) return
-        setEmail(res.data?.email || '')
+        setEmail(res.data?.user?.email || '')
+        establishSession(res.data)
         setState('success')
       })
       .catch(() => {
@@ -34,7 +38,7 @@ export default function VerifyEmailPage() {
     return () => {
       cancelled = true
     }
-  }, [token, state])
+  }, [token, state, establishSession])
 
   async function handleVerify(e) {
     e.preventDefault()
@@ -46,7 +50,8 @@ export default function VerifyEmailPage() {
     setVerifying(true)
     try {
       const res = await verifyEmail(token, email.trim().toLowerCase())
-      setEmail(res.data?.email || email.trim())
+      setEmail(res.data?.user?.email || email.trim())
+      establishSession(res.data)
       setOtp('')
       setState('success')
     } catch (err) {
@@ -93,11 +98,11 @@ export default function VerifyEmailPage() {
               </div>
               <h1 className="font-display text-2xl font-bold text-white">Email verified</h1>
               <p className="mt-3 text-sm leading-relaxed text-white/70">
-                {email && <>Your account <span className="font-semibold text-gold-400">{email}</span> is now active. </>}
-                You can log in with your credentials.
+                {email && <>Your account <span className="font-semibold text-gold-400">{email}</span> is now active and you&apos;re signed in. </>}
+                Welcome to ExportPlatform.
               </p>
-              <Link to="/login" state={{ from: '/dashboard' }} className="btn-primary mt-6 inline-block w-full">
-                Go to Login
+              <Link to="/" className="btn-primary mt-6 inline-block w-full">
+                Continue to Home
               </Link>
             </>
           )}

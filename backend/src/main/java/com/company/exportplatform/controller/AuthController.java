@@ -39,7 +39,7 @@ public class AuthController {
     }
 
     @PostMapping("/verify-email")
-    public ApiResponse<com.company.exportplatform.dto.response.VerifyEmailResponse> verifyEmail(
+    public ApiResponse<AuthResponse> verifyEmail(
             @Valid @RequestBody com.company.exportplatform.dto.request.VerifyEmailRequest request) {
         return ApiResponse.ok("Email verified successfully. You can now log in.",
                 authService.verifyEmail(request.token(), request.email()));

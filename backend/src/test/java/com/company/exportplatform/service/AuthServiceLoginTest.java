@@ -99,8 +99,8 @@ class AuthServiceLoginTest {
     }
 
     @Test
-    @DisplayName("successful login resets lockout and requires an emailed OTP before a token")
-    void successfulLoginRequestsOtpInsteadOfToken() {
+    @DisplayName("successful login resets lockout and issues a session token directly (no OTP step)")
+    void successfulLoginIssuesToken() {
         User user = new User();
         user.setId(9L);
         user.setEmail(EMAIL);
@@ -111,18 +111,18 @@ class AuthServiceLoginTest {
         user.setRole(role);
 
         when(userRepository.findByEmail(EMAIL)).thenReturn(Optional.of(user));
-        when(otpService.issue(any(User.class), eq(OtpService.PURPOSE_LOGIN), anyInt()))
-                .thenReturn("123456");
-        when(mailService.isMailEnabled()).thenReturn(false);
+        when(jwtService.generateToken(user)).thenReturn("jwt-token");
+        when(jwtService.getExpirationMs()).thenReturn(86400000L);
 
         AuthResponse response = service.login(login("right"));
 
         verify(loginLockoutService).checkAllowed(EMAIL);
         verify(loginLockoutService).recordSuccess(EMAIL);
-        verify(otpService).issue(eq(user), eq(OtpService.PURPOSE_LOGIN), anyInt());
-        assertThat(response.isRequiresOtp()).isTrue();
-        assertThat(response.getAccessToken()).isNull();
-        assertThat(response.getDevOtp()).isEqualTo("123456");
+        verify(otpService, never()).issue(any(), any(), anyInt());
+        assertThat(response.getAccessToken()).isEqualTo("jwt-token");
+        assertThat(response.isRequiresOtp()).isFalse();
+        assertThat(response.getUser().getEmail()).isEqualTo(EMAIL);
+        assertThat(response.getUser().getRole()).isEqualTo(RoleName.ADMIN);
     }
 
     @Test

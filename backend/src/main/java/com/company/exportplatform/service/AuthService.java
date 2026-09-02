@@ -132,7 +132,7 @@ public class AuthService {
     }
 
     @Transactional
-    public com.company.exportplatform.dto.response.VerifyEmailResponse verifyEmail(
+    public AuthResponse verifyEmail(
             String rawToken, String email) {
         if (rawToken == null || rawToken.isBlank()) {
             throw new BadRequestException("This verification code is invalid");
@@ -149,7 +149,7 @@ public class AuthService {
         return completeVerification(verification);
     }
 
-    private com.company.exportplatform.dto.response.VerifyEmailResponse verifyByPendingEmail(
+    private AuthResponse verifyByPendingEmail(
             String email, String token) {
         User user = userRepository.findByEmail(email)
                 .orElseThrow(() -> new BadRequestException("This verification code is invalid"));
@@ -173,27 +173,27 @@ public class AuthService {
         return completeVerification(verification);
     }
 
-    private com.company.exportplatform.dto.response.VerifyEmailResponse completeVerification(
+    private AuthResponse completeVerification(
             com.company.exportplatform.entity.EmailVerification verification) {
         if (verification.getVerifiedAt() != null) {
-            return new com.company.exportplatform.dto.response.VerifyEmailResponse(
-                    verification.getUser().getEmail(), true);
+            return issueToken(verification.getUser());
         }
         if (verification.getExpiresAt().isBefore(LocalDateTime.now())) {
             throw new BadRequestException(
                     "This verification code has expired. Please request a new one from the login page.");
         }
 
+        User user = verification.getUser();
         verification.setVerifiedAt(LocalDateTime.now());
         emailVerificationRepository.save(verification);
 
-        User user = verification.getUser();
         user.setActive(true);
         userRepository.save(user);
+        user.setLastLoginAt(LocalDateTime.now());
         auditService.record(user.getEmail(), "EMAIL_VERIFIED", "USER", user.getId(), null, null);
         log.info("User #{} verified their email address", user.getId());
 
-        return new com.company.exportplatform.dto.response.VerifyEmailResponse(user.getEmail(), true);
+        return issueToken(user);
     }
 
     @Transactional
@@ -250,19 +250,13 @@ public class AuthService {
                     "This account uses Google sign-in. Please log in with your Google account.");
         }
 
-        // Credentials are correct; prove the sign-in with an OTP emailed to
-        // the account owner before issuing a session token.
+        // Credentials are correct: start a session and return the token
+        // immediately (no second OTP step for sign-in).
         loginLockoutService.recordSuccess(email);
-        String code = otpService.issue(user, OtpService.PURPOSE_LOGIN, loginOtpTtlMinutes);
-        auditService.record(email, "LOGIN_OTP_SENT", "USER", user.getId(), null, null);
-        mailService.sendHtml(email, LOGIN_OTP_SUBJECT, buildLoginOtpEmail(user, code));
-        String devOtp = mailService.isMailEnabled() ? null : code;
-        if (devOtp != null) {
-            log.warn("Development login OTP for {}: {} (mail delivery is disabled; never shown in the UI)", email, devOtp);
-        }
-        log.info("Issued login OTP for user #{} (mail enabled: {})",
-                user.getId(), mailService.isMailEnabled());
-        return AuthResponse.otpPending(user, devOtp);
+        user.setLastLoginAt(LocalDateTime.now());
+        userRepository.save(user);
+        auditService.record(email, "LOGIN_SUCCESS", "USER", user.getId(), null, null);
+        return issueToken(user);
     }
 
     @Transactional

@@ -27,12 +27,8 @@ export default function LoginPage() {
     setError('')
     setSubmitting(true)
     try {
-      const result = await login(form.email.trim(), form.password)
-      if (result.requiresOtp) {
-        navigate('/login/otp', { state: { email: form.email.trim() } })
-        return
-      }
-      navigate(location.state?.from || fallbackFor(result.user?.role), { replace: true })
+      const user = await login(form.email.trim(), form.password)
+      navigate(location.state?.from || fallbackFor(user?.role), { replace: true })
     } catch (err) {
       setError(apiErrorMessage(err, 'Unable to log in. Please check your credentials.'))
     } finally {

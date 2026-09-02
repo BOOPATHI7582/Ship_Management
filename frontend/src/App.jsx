@@ -10,7 +10,6 @@ import ContactPage from './pages/public/ContactPage'
 import CareersPage from './pages/public/CareersPage'
 import PublicQuotationPage from './pages/public/PublicQuotationPage'
 import LoginPage from './pages/auth/LoginPage'
-import VerifyLoginOtpPage from './pages/auth/VerifyLoginOtpPage'
 import RegisterPage from './pages/auth/RegisterPage'
 import ForgotPasswordPage from './pages/auth/ForgotPasswordPage'
 import ResetPasswordPage from './pages/auth/ResetPasswordPage'
@@ -129,7 +128,6 @@ export default function App() {
       </Route>
 
       <Route path="/login" element={<LoginPage />} />
-      <Route path="/login/otp" element={<VerifyLoginOtpPage />} />
       <Route path="/register" element={<RegisterPage />} />
       <Route path="/verify-email" element={<VerifyEmailPage />} />
       <Route path="/forgot-password" element={<ForgotPasswordPage />} />
