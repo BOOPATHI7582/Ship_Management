@@ -2,8 +2,10 @@ import axios from 'axios'
 
 export const TOKEN_KEY = 'ep_access_token'
 
+const PROD_API = 'https://ship-management-7.onrender.com/api'
+
 const api = axios.create({
-  baseURL: import.meta.env.VITE_API_BASE_URL || '/api',
+  baseURL: import.meta.env.VITE_API_BASE_URL || (import.meta.env.PROD ? PROD_API : '/api'),
   timeout: 20000,
   headers: { 'Content-Type': 'application/json' },
 })
