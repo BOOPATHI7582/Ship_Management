@@ -139,26 +139,41 @@ public class AuthService {
         }
         String token = rawToken.trim();
 
-        // Email present -> resolve the pending record to enforce attempts.
-        if (email != null && !email.isBlank()) {
-            return verifyByPendingEmail(email.trim().toLowerCase(), token);
-        }
+        // The token is the source of truth. The email is only a best-effort
+        // hint for attempt limiting when the token itself cannot be resolved,
+        // so a valid code works even if the caller mistyped their email.
         com.company.exportplatform.entity.EmailVerification verification =
                 emailVerificationRepository.findByTokenHash(hashToken(token))
-                        .orElseThrow(() -> new BadRequestException("This verification code is invalid"));
+                        .orElse(null);
+        if (verification == null && email != null && !email.isBlank()) {
+            verification = findByPendingEmail(email.trim().toLowerCase(), token);
+        }
+        if (verification == null) {
+            throw new BadRequestException("This verification code is invalid");
+        }
         return completeVerification(verification);
     }
 
-    private AuthResponse verifyByPendingEmail(
+    /**
+     * Locates a single pending verification for an account so wrong-attempt
+     * limits can be enforced when the exact code hash is unknown.
+     *
+     * @return the pending verification, or null when no usable record exists.
+     */
+    private com.company.exportplatform.entity.EmailVerification findByPendingEmail(
             String email, String token) {
-        User user = userRepository.findByEmail(email)
-                .orElseThrow(() -> new BadRequestException("This verification code is invalid"));
+        User user = userRepository.findByEmail(email).orElse(null);
+        if (user == null) {
+            return null;
+        }
         com.company.exportplatform.entity.EmailVerification verification =
                 emailVerificationRepository
                         .findFirstByUserIdAndVerifiedAtIsNullOrderByCreatedAtDesc(user.getId())
-                        .orElseThrow(() -> new BadRequestException("This verification code is invalid or already used"));
-        if (verification.getAttempts() >= EMAIL_VERIFY_MAX_ATTEMPTS) {
-            emailVerificationRepository.delete(verification);
+                        .orElse(null);
+        if (verification == null || verification.getAttempts() >= EMAIL_VERIFY_MAX_ATTEMPTS) {
+            if (verification != null) {
+                emailVerificationRepository.delete(verification);
+            }
             throw new BadRequestException("Too many failed attempts. Please request a new verification code.");
         }
         if (verification.getExpiresAt().isBefore(LocalDateTime.now())) {
@@ -170,7 +185,7 @@ public class AuthService {
             emailVerificationRepository.save(verification);
             throw new BadRequestException("Incorrect verification code. Please try again.");
         }
-        return completeVerification(verification);
+        return verification;
     }
 
     private AuthResponse completeVerification(
